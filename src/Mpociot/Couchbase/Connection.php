@@ -1,15 +1,14 @@
 <?php namespace Mpociot\Couchbase;
 
-use CouchbaseBucket;
-use CouchbaseCluster;
-use CouchbaseN1qlQuery;
+use Couchbase\Cluster;
+use Couchbase\N1qlQuery;
 
 class Connection extends \Illuminate\Database\Connection
 {
     /**
      * The Couchbase database handler.
      *
-     * @var CouchbaseBucket
+     * @var \Couchbase\Bucket
      */
     protected $bucket;
 
@@ -22,7 +21,7 @@ class Connection extends \Illuminate\Database\Connection
     /**
      * The Couchbase connection handler.
      *
-     * @var CouchbaseCluster
+     * @var \Couchbase\Cluster
      */
     protected $connection;
 
@@ -44,15 +43,12 @@ class Connection extends \Illuminate\Database\Connection
         $dsn = $this->getDsn($config);
 
         // Create the connection
-        $this->connection = $this->createConnection($dsn, $config);
+        $this->connection = $this->createConnection($dsn);
         
         // Select database
         $this->bucketname = $config['bucket'];
-        $this->bucket = $this->connection->openBucket($this->bucketname);
-        
-        // Enable N1QL for bucket
-        $this->bucket->enableN1ql($config['n1ql_hosts']);
-        
+        $this->bucket = $this->connection->openBucket($this->bucketname, $config['password'] ?? '');
+
         $this->useDefaultQueryGrammar();
 
         $this->useDefaultPostProcessor();
@@ -96,11 +92,11 @@ class Connection extends \Illuminate\Database\Connection
     }
 
     /**
-     * @param CouchbaseN1qlQuery $query
+     * @param \Couchbase\N1qlQuery $query
      *
      * @return mixed
      */
-    protected function executeQuery(CouchbaseN1qlQuery $query)
+    protected function executeQuery(N1qlQuery $query)
     {
         return $this->bucket->query($query);
     }
@@ -115,7 +111,7 @@ class Connection extends \Illuminate\Database\Connection
                 return [];
             }
 
-            $query = CouchbaseN1qlQuery::fromString($query);
+            $query = N1qlQuery::fromString($query);
             $query->consistency($this->consistency);
             $query->positionalParams($bindings);
 
@@ -196,7 +192,7 @@ class Connection extends \Illuminate\Database\Connection
             if ($this->pretending()) {
                 return 0;
             }
-            $query = CouchbaseN1qlQuery::fromString($query);
+            $query = N1qlQuery::fromString($query);
             $query->consistency($this->consistency);
             $query->positionalParams($bindings);
             $result = $this->executeQuery($query);
@@ -241,7 +237,7 @@ class Connection extends \Illuminate\Database\Connection
     /**
      * Get the Couchbase bucket object.
      *
-     * @return \CouchbaseBucket
+     * @return \Couchbase\Bucket
      */
     public function getCouchbaseBucket()
     {
@@ -251,7 +247,7 @@ class Connection extends \Illuminate\Database\Connection
     /**
      * return CouchbaseCluster object.
      *
-     * @return \CouchbaseCluster
+     * @return \Couchbase\Cluster
      */
     public function getCouchbaseCluster()
     {
@@ -261,13 +257,12 @@ class Connection extends \Illuminate\Database\Connection
     /**
      * Create a new Couchbase connection.
      *
-     * @param  string  $dsn
-     * @param  array   $config
-     * @return \CouchbaseCluster
+     * @param  string $dsn
+     * @return \Couchbase\Cluster
      */
-    protected function createConnection($dsn, array $config)
+    protected function createConnection($dsn): Cluster
     {
-        return new CouchbaseCluster($dsn, array_get($config, 'username'), array_get($config, 'password'));
+        return new Cluster($dsn);
     }
 
     /**

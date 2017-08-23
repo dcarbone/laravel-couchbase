@@ -446,14 +446,23 @@ class Builder extends BaseBuilder
      */
     public function push($column, $value = null, $unique = false)
     {
-        $obj = $this->connection->getCouchbaseBucket()->get($this->keys);
-        if (!isset($obj->value->{$column})) {
-            $obj->value->{$column} = [];
+        $values = [];
+        if ($obj = $this->connection->getCouchbaseBucket()->get($this->keys)) {
+            if (is_array($obj->value)) {
+                if (isset($obj->value[$column])) {
+                    $values = $obj->value[$column];
+                }
+            } else { // TODO: OK to assume object...?
+                if (isset($obj->value->{$column})) {
+                    $values = $obj->value->{$column};
+                }
+            }
         }
+
         if (is_array($value) && count($value) === 1) {
-            $obj->value->{$column}[] = reset($value);
+            $values = reset($value);
         } else {
-            $obj->value->{$column}[] = $value;
+            $values[] = $value;
         }
 
         $array = array_map('json_encode', $obj->value->{$column});

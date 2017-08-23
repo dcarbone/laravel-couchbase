@@ -17,4 +17,8 @@ class Helper
     {
         return (($praefix !== null) ? $praefix.'::' : '').uniqid();
     }
+
+    public static function decode($value) {
+
+    }
 }
