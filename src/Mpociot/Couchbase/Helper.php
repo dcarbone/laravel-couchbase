@@ -13,12 +13,17 @@ class Helper
 {
     const TYPE_NAME = 'eloquent_type';
 
-    public static function getUniqueId($praefix = null)
+    public static function getUniqueId($prefix = null)
     {
-        return (($praefix !== null) ? $praefix.'::' : '').uniqid();
+        return (($prefix !== null) ? $prefix.'::' : '').uniqid();
     }
 
-    public static function decode($value) {
+    public static function decode($value)
+    {
+        switch(CouchbaseINI::serializer()) {
+            case COUCHBASE_SERIALIZER_PHP:
 
+
+        }
     }
 }

@@ -6,6 +6,14 @@ use Illuminate\Support\Collection;
 use Mpociot\Couchbase\Connection;
 use Mpociot\Couchbase\Helper;
 
+/**
+ * Class Builder
+ * @package Mpociot\Couchbase\Query
+ *
+ * @property \Mpociot\Couchbase\Connection $connection
+ * @property \Mpociot\Couchbase\Query\Grammar $grammar
+ * @property \Mpociot\Couchbase\Query\Processor $processor
+ */
 class Builder extends BaseBuilder
 {
 
@@ -98,9 +106,7 @@ class Builder extends BaseBuilder
      */
     public function __construct(Connection $connection, Processor $processor)
     {
-        $this->grammar = new Grammar;
-        $this->connection = $connection;
-        $this->processor = $processor;
+        parent::__construct($connection, new Grammar(), $processor);
         $this->useCollections = $this->shouldUseCollections();
         $this->returning([$this->connection->getBucketName().'.*']);
     }
@@ -289,13 +295,14 @@ class Builder extends BaseBuilder
     /**
      * Force the query to only return distinct results.
      *
-     * @return Builder
+     * @param string|null $column
+     * @return \Mpociot\Couchbase\Query\Builder
      */
-    public function distinct($column = false)
+    public function distinct($column = null)
     {
         $this->distinct = true;
 
-        if ($column) {
+        if ($column !== null) {
             $this->columns = [$column];
         }
 
@@ -341,10 +348,12 @@ class Builder extends BaseBuilder
      *
      * @param array $values
      *
-     * @return bool
+     * @return \Couchbase\Document|\Couchbase\Document[]|null
      */
     public function insert(array $values)
     {
+        $result = null;
+
         // Since every insert gets treated like a batch insert, we will have to detect
         // if the user is inserting a single document or an array of documents.
         $batch = true;
@@ -442,7 +451,7 @@ class Builder extends BaseBuilder
      *
      * @param  mixed   $column
      * @param  mixed   $value
-     * @return int
+     * @return \Couchbase\Document|\Couchbase\Document[]
      */
     public function push($column, $value = null, $unique = false)
     {
