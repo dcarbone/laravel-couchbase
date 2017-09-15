@@ -10,13 +10,12 @@ use Mpociot\Couchbase\Helper;
  * Class Builder
  * @package Mpociot\Couchbase\Query
  *
- * @property \Mpociot\Couchbase\Connection $connection
- * @property \Mpociot\Couchbase\Query\Grammar $grammar
+ * @property \Mpociot\Couchbase\Query\Grammar   $grammar
  * @property \Mpociot\Couchbase\Query\Processor $processor
+ * @property \Mpociot\Couchbase\Connection      $connection
  */
 class Builder extends BaseBuilder
 {
-
     /**
      * The column projections.
      *
@@ -106,9 +105,9 @@ class Builder extends BaseBuilder
      */
     public function __construct(Connection $connection, Processor $processor)
     {
-        parent::__construct($connection, new Grammar(), $processor);
+        parent::__construct($connection, new Grammar, $processor);
         $this->useCollections = $this->shouldUseCollections();
-        $this->returning([$this->connection->getBucketName().'.*']);
+        $this->returning([$this->connection->getBucketName() . '.*']);
     }
 
     /**
@@ -118,7 +117,7 @@ class Builder extends BaseBuilder
      */
     public function useKeys($keys)
     {
-        if(is_null($keys)) {
+        if (is_null($keys)) {
             $keys = [];
         }
         $this->keys = $keys;
@@ -133,7 +132,7 @@ class Builder extends BaseBuilder
      */
     public function returning(array $column = ['*'])
     {
-        $this->returning = $column;
+        $this->returning = array_map([$this->grammar, 'wrap'], $column);
 
         return $this;
     }
@@ -147,15 +146,18 @@ class Builder extends BaseBuilder
     {
         if (function_exists('app')) {
             $version = app()->version();
-            $version = filter_var(explode(')', $version)[0], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION); // lumen
+            $version = filter_var(explode(')', $version)[0],
+                FILTER_SANITIZE_NUMBER_FLOAT,
+                FILTER_FLAG_ALLOW_FRACTION); // lumen
             return version_compare($version, '5.3', '>=');
         }
+        return false;
     }
 
     /**
      * Set the table which the query is targeting.
      *
-     * @param  string  $type
+     * @param  string $type
      * @return $this
      */
     public function from($type)
@@ -163,8 +165,8 @@ class Builder extends BaseBuilder
         $this->from = $this->connection->getBucketName();
         $this->type = $type;
 
-        if(!is_null($type)) {
-            $this->where( Helper::TYPE_NAME, $type );
+        if (!is_null($type)) {
+            $this->where(Helper::TYPE_NAME, $type);
         }
         return $this;
     }
@@ -183,7 +185,7 @@ class Builder extends BaseBuilder
     /**
      * Set the projections.
      *
-     * @param  array  $columns
+     * @param  array $columns
      * @return $this
      */
     public function project($columns)
@@ -222,8 +224,8 @@ class Builder extends BaseBuilder
     /**
      * Execute a query for a single record by ID.
      *
-     * @param  mixed  $id
-     * @param  array  $columns
+     * @param  mixed $id
+     * @param  array $columns
      * @return mixed|static
      */
     public function find($id, $columns = ['*'])
@@ -242,15 +244,15 @@ class Builder extends BaseBuilder
     public function generateCacheKey()
     {
         $key = [
-            'bucket'     => $this->from,
-            'type'       => $this->type,
-            'wheres'     => $this->wheres,
-            'columns'    => $this->columns,
-            'groups'     => $this->groups,
-            'orders'     => $this->orders,
-            'offset'     => $this->offset,
-            'limit'      => $this->limit,
-            'aggregate'  => $this->aggregate,
+            'bucket'    => $this->from,
+            'type'      => $this->type,
+            'wheres'    => $this->wheres,
+            'columns'   => $this->columns,
+            'groups'    => $this->groups,
+            'orders'    => $this->orders,
+            'offset'    => $this->offset,
+            'limit'     => $this->limit,
+            'aggregate' => $this->aggregate,
         ];
 
         return md5(serialize(array_values($key)));
@@ -259,8 +261,8 @@ class Builder extends BaseBuilder
     /**
      * Execute an aggregate function on the database.
      *
-     * @param  string  $function
-     * @param  array   $columns
+     * @param  string $function
+     * @param  array  $columns
      * @return mixed
      */
     public function aggregate($function, $columns = [])
@@ -276,7 +278,7 @@ class Builder extends BaseBuilder
         $this->aggregate = null;
 
         if (isset($results[0])) {
-            $result = (array) $results[0];
+            $result = (array)$results[0];
 
             return $result['aggregate'];
         }
@@ -289,7 +291,7 @@ class Builder extends BaseBuilder
      */
     public function exists()
     {
-        return ! is_null($this->first());
+        return !is_null($this->first());
     }
 
     /**
@@ -312,10 +314,10 @@ class Builder extends BaseBuilder
     /**
      * Add a where between statement to the query.
      *
-     * @param  string  $column
-     * @param  array   $values
-     * @param  string  $boolean
-     * @param  bool  $not
+     * @param  string $column
+     * @param  array  $values
+     * @param  string $boolean
+     * @param  bool   $not
      * @return Builder
      */
     public function whereBetween($column, array $values, $boolean = 'and', $not = false)
@@ -332,8 +334,8 @@ class Builder extends BaseBuilder
     /**
      * Set the limit and offset for a given page.
      *
-     * @param  int  $page
-     * @param  int  $perPage
+     * @param  int $page
+     * @param  int $perPage
      * @return \Illuminate\Database\Query\Builder|static
      */
     public function forPage($page, $perPage = 15)
@@ -360,7 +362,7 @@ class Builder extends BaseBuilder
         foreach ($values as $key => $value) {
             // As soon as we find a value that is not an array we assume the user is
             // inserting a single document.
-            if (! is_array($value) || is_string($key)) {
+            if (!is_array($value) || is_string($key)) {
                 $batch = false;
                 break;
             }
@@ -370,7 +372,7 @@ class Builder extends BaseBuilder
             $this->useKeys(Helper::getUniqueId($this->type));
         }
 
-        if ($batch){
+        if ($batch) {
             foreach ($values as &$value) {
                 $value[Helper::TYPE_NAME] = $this->type;
                 $key = Helper::getUniqueId($this->type);
@@ -387,16 +389,16 @@ class Builder extends BaseBuilder
     /**
      * Insert a new record and get the value of the primary key.
      *
-     * @param  array   $values
-     * @param  string  $sequence
+     * @param  array  $values
+     * @param  string $sequence
      * @return int
      */
     public function insertGetId(array $values, $sequence = NULL)
     {
-        if (!is_null($sequence) && isset($values[$sequence])){
-            $this->useKeys((string)$values[ $sequence]);
+        if (!is_null($sequence) && isset($values[$sequence])) {
+            $this->useKeys((string)$values[$sequence]);
         } elseif (isset($values['_id'])) {
-            $this->useKeys((string)$values[ '_id']);
+            $this->useKeys((string)$values['_id']);
         }
         $this->insert($values);
         return $this->keys;
@@ -405,8 +407,8 @@ class Builder extends BaseBuilder
     /**
      * Get an array with the values of a given column.
      *
-     * @param  string  $column
-     * @param  string|null  $key
+     * @param  string      $column
+     * @param  string|null $key
      * @return array
      */
     public function pluck($column, $key = null)
@@ -416,7 +418,7 @@ class Builder extends BaseBuilder
         // Convert ObjectID's to strings
         if ($key == '_id') {
             $results = $results->map(function ($item) {
-                $item['_id'] = (string) $item['_id'];
+                $item['_id'] = (string)$item['_id'];
                 return $item;
             });
         }
@@ -437,8 +439,8 @@ class Builder extends BaseBuilder
      * Get an array with the values of a given column.
      *
      * @deprecated
-     * @param  string  $column
-     * @param  string  $key
+     * @param  string $column
+     * @param  string $key
      * @return array
      */
     public function lists($column, $key = null)
@@ -449,34 +451,28 @@ class Builder extends BaseBuilder
     /**
      * Append one or more values to an array.
      *
-     * @param  mixed   $column
-     * @param  mixed   $value
-     * @return \Couchbase\Document|\Couchbase\Document[]
+     * @param  mixed $column
+     * @param  mixed $value
+     * @param bool   $unique
+     * @return \Couchbase\Document|\Couchbase\Document[]|null
      */
     public function push($column, $value = null, $unique = false)
     {
-        $values = [];
-        if ($obj = $this->connection->getCouchbaseBucket()->get($this->keys)) {
-            if (is_array($obj->value)) {
-                if (isset($obj->value[$column])) {
-                    $values = $obj->value[$column];
-                }
-            } else { // TODO: OK to assume object...?
-                if (isset($obj->value->{$column})) {
-                    $values = $obj->value->{$column};
-                }
-            }
+        $obj = $this->connection->getCouchbaseBucket()->get($this->keys);
+        if (!isset($obj->value->{$column})) {
+            $obj->value->{$column} = [];
         }
-
         if (is_array($value) && count($value) === 1) {
-            $values = reset($value);
+            $obj->value->{$column}[] = reset($value);
         } else {
-            $values[] = $value;
+            $obj->value->{$column}[] = $value;
         }
 
-        $array = array_map('json_encode', $obj->value->{$column});
-        $array = array_unique($array);
-        $obj->value->{$column} = array_map('json_decode', $array);
+        if ($unique) {
+            $array = array_map('json_encode', $obj->value->{$column});
+            $array = array_unique($array);
+            $obj->value->{$column} = array_map('json_decode', $array);
+        }
 
         return $this->connection->getCouchbaseBucket()->upsert($this->keys, $obj->value);
     }
@@ -484,9 +480,9 @@ class Builder extends BaseBuilder
     /**
      * Remove one or more values from an array.
      *
-     * @param  mixed   $column
-     * @param  mixed   $value
-     * @return int
+     * @param  mixed $column
+     * @param  mixed $value
+     * @return \Couchbase\Document|\Couchbase\Document[]|null
      */
     public function pull($column, $value = null)
     {
@@ -495,7 +491,7 @@ class Builder extends BaseBuilder
             if (!is_array($value)) {
                 $value = [$value];
             }
-            $filtered = collect($obj->value->{$column})->reject(function ($val, $key) use ($value){
+            $filtered = collect($obj->value->{$column})->reject(function ($val, $key) use ($value) {
                 $match = false;
                 foreach (array_keys($value) AS $matchKey) {
                     if (is_object($val)) {
@@ -513,7 +509,7 @@ class Builder extends BaseBuilder
 
             return $this->connection->getCouchbaseBucket()->upsert($this->keys, $obj->value);
         } catch (\Exception $e) {
-
+            return null;
         }
     }
 
@@ -525,7 +521,7 @@ class Builder extends BaseBuilder
      */
     public function drop($columns)
     {
-        if (! is_array($columns)) {
+        if (!is_array($columns)) {
             $columns = [$columns];
         }
 
@@ -551,14 +547,16 @@ class Builder extends BaseBuilder
     protected function runSelect()
     {
         if ($this->columns === ['*']) {
-            $this->columns = [$this->connection->getBucketName().'.*'];
+            $this->columns = [$this->connection->getBucketName() . '.*'];
         }
-        if ($this->columns === [$this->connection->getBucketName().'.*'] || in_array('_id', $this->columns)) {
-            $this->columns[] = 'meta('.$this->connection->getBucketName().').id as _id';
+        if ($this->columns === [$this->connection->getBucketName() . '.*'] || in_array('_id', $this->columns)) {
+            $this->columns[] = 'meta(' . $this->connection->getBucketName() . ').id as _id';
             $this->columns = array_diff($this->columns, ['_id']);
         }
-        for($i=0; $i<count($this->wheres); $i++) {
-            if (array_key_exists('column', $this->wheres[$i]) === true && $this->wheres[$i]['column'][0] !== '`' && $this->wheres[$i]['column'] == 'build') {
+        for ($i = 0; $i < count($this->wheres); $i++) {
+            if (array_key_exists('column', $this->wheres[$i]) === true &&
+                $this->wheres[$i]['column'][0] !== '`' &&
+                $this->wheres[$i]['column'] == 'build') {
                 $this->wheres[$i]['column'] = '`' . $this->wheres[$i]['column'] . '`';
             }
         }
@@ -579,10 +577,10 @@ class Builder extends BaseBuilder
     /**
      * Add a FOR ... IN query
      *
-     * @param  string  $column
-     * @param  mixed   $value
-     * @param  string  $alias
-     * @param  array   $values
+     * @param  string $column
+     * @param  mixed  $value
+     * @param  string $alias
+     * @param  array  $values
      * @return \Illuminate\Database\Query\Builder|static
      *
      * @throws \InvalidArgumentException
@@ -597,10 +595,10 @@ class Builder extends BaseBuilder
     /**
      * Add a basic where clause to the query.
      *
-     * @param  string  $column
-     * @param  string  $operator
-     * @param  mixed   $value
-     * @param  string  $boolean
+     * @param  string $column
+     * @param  string $operator
+     * @param  mixed  $value
+     * @param  string $boolean
      * @return \Illuminate\Database\Query\Builder|static
      *
      * @throws \InvalidArgumentException
@@ -619,7 +617,7 @@ class Builder extends BaseBuilder
     /**
      * Set custom options for the query.
      *
-     * @param  array  $options
+     * @param  array $options
      * @return $this
      */
     public function options(array $options)
@@ -643,18 +641,11 @@ class Builder extends BaseBuilder
     }
 
     /**
-     * Handle dynamic method calls into the method.
-     *
-     * @param  string  $method
-     * @param  array   $parameters
-     * @return mixed
+     * @param string $name
+     * @return int
      */
-    public function __call($method, $parameters)
+    public function __unset($name)
     {
-        if ($method == 'unset') {
-            return call_user_func_array([$this, 'drop'], $parameters);
-        }
-
-        return parent::__call($method, $parameters);
+        return $this->drop($name);
     }
 }

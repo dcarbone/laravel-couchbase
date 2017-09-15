@@ -8,7 +8,6 @@
 
 namespace Mpociot\Couchbase;
 
-
 class Helper
 {
     const TYPE_NAME = 'eloquent_type';
@@ -16,14 +15,5 @@ class Helper
     public static function getUniqueId($prefix = null)
     {
         return (($prefix !== null) ? $prefix.'::' : '').uniqid();
-    }
-
-    public static function decode($value)
-    {
-        switch(CouchbaseINI::serializer()) {
-            case COUCHBASE_SERIALIZER_PHP:
-
-
-        }
     }
 }

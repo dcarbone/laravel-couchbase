@@ -1,8 +1,5 @@
 <?php namespace Mpociot\Couchbase\Schema;
 
-use Closure;
-use Illuminate\Database\Connection;
-
 class Blueprint extends \Illuminate\Database\Schema\Blueprint
 {
     /**
