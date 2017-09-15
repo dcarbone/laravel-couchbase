@@ -213,7 +213,23 @@ class Grammar extends BaseGrammar
             return $value;
         }
 
-        return '`'.str_replace('"', '""', $value).'`';
+        if (is_string($value) || settype($value, 'string')) {
+            // TODO: Really hate "is_numeric".  Maybe find better way?
+            if (is_numeric($value)) {
+                return $value;
+            }
+            if (($value[0] === '`' || $value[0] === '"' || $value[0] === '\'') && substr($value, -1) === $value[0]) {
+                return $value;
+            }
+            if (strlen($value) === 4) {
+                $l = strtolower($value);
+                if ($l === 'true' || $l === 'false') {
+                    return $value;
+                }
+            }
+        }
+
+        return '`'.str_replace('`', '``', $value).'`';
     }
 
     /**
@@ -228,7 +244,7 @@ class Grammar extends BaseGrammar
         }
 
         if (in_array(strtoupper($value), self::RESERVED_WORDS) || !preg_match('/^[a-zA-Z_][0-9a-zA-Z_$]*$/', $value)) {
-            return '`' . str_replace('"', '""', $value) . '`';
+            return $this->wrapValue($value);
         }
 
         return $value;
