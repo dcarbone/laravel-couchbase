@@ -33,14 +33,6 @@
             <directory>tests/ModelTest.php</directory>
             <directory>tests/RelationsTest.php</directory>
         </testsuite>
-        <testsuite name="relations">
-            <directory>tests/RelationsTest.php</directory>
-            <directory>tests/EmbeddedRelationsTest.php</directory>
-        </testsuite>
-        <testsuite name="mysqlrelations">
-            <directory>tests/RelationsTest.php</directory>
-            <directory>tests/MysqlRelationsTest.php</directory>
-        </testsuite>
         <testsuite name="validation">
             <directory>tests/ValidationTest.php</directory>
         </testsuite>
