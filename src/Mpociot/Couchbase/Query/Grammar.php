@@ -465,7 +465,7 @@ class Grammar extends BaseGrammar
                     $this->wrap($forIn['alias']) .
                     ' WHEN ' .
                     $this->wrap($forIn['column']) .
-                    '= ?' .
+                    '= ' . $this->parameter($forIn['value']) .
                     ' END';
             }
         }
