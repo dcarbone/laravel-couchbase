@@ -1,6 +1,7 @@
 <?php namespace Mpociot\Couchbase\Query;
 
 use Illuminate\Database\Query\Builder as BaseBuilder;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Query\Grammars\Grammar as BaseGrammar;
 use Mpociot\Couchbase\Helper;
 
@@ -183,9 +184,11 @@ class Grammar extends BaseGrammar
     /**
      * The components that make up a select clause.
      *
+     * Note: We added "key"
+     *
      * @var array
      */
-    const SELECT_COMPONENTS = [
+    protected $selectComponents = [
         'aggregate',
         'columns',
         'from',
@@ -213,41 +216,47 @@ class Grammar extends BaseGrammar
             return $value;
         }
 
-        if (is_string($value) || settype($value, 'string')) {
-            // TODO: Really hate "is_numeric".  Maybe find better way?
-            if (is_numeric($value)) {
-                return $value;
-            }
-            if (($value[0] === '`' || $value[0] === '"' || $value[0] === '\'') && substr($value, -1) === $value[0]) {
-                return $value;
-            }
-            if (strlen($value) === 4) {
-                $l = strtolower($value);
-                if ($l === 'true' || $l === 'false') {
-                    return $value;
+        switch (gettype($value)) {
+            case 'double':
+            case 'integer':
+                $value = (string)$value;
+                break;
+            case 'NULL':
+                $value = 'null';
+                break;
+            case 'boolean':
+                $value = $value ? 'true' : 'false';
+                break;
+            case 'object':
+                if (method_exists($value, '__toString')) {
+                    $value = (string)$value;
+                    break;
                 }
+            case 'array':
+                throw new \InvalidArgumentException('Cannot set value of type array or object.  Please serialize first.');
+        }
+
+        // TODO: Really hate "is_numeric".  Maybe find better way?
+        if (is_numeric($value)) {
+            return $value;
+        }
+        $escaped = $value[0] === '`' || $value[0] === '"' || $value[0] === '\'';
+        if ($escaped) {
+            if (substr($value, -1) === $value[0]) {
+                return $value;
+            }
+        } else if (preg_match('/^[a-zA-Z_]+\(/', $value)) {
+            return $value;
+        }
+
+        if (strlen($value) === 4) {
+            $l = strtolower($value);
+            if ($l === 'true' || $l === 'false' || $l === 'null') {
+                return $value;
             }
         }
 
-        return '`'.str_replace('`', '``', $value).'`';
-    }
-
-    /**
-     * @param $value
-     *
-     * @return string
-     */
-    protected function wrapKey($value)
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        if (in_array(strtoupper($value), self::RESERVED_WORDS) || !preg_match('/^[a-zA-Z_][0-9a-zA-Z_$]*$/', $value)) {
-            return $this->wrapValue($value);
-        }
-
-        return $value;
+        return '`' . str_replace('`', '``', $value) . '`';
     }
 
     /**
@@ -278,17 +287,17 @@ class Grammar extends BaseGrammar
         $values = $this->parameterize($where['values']);
 
         if ($where['column'] === '_id') {
-            $column = 'meta(' . $query->getConnection()->getBucketName() . ').id';
+            $column = new Expression('meta(`' . $query->getConnection()->getBucketName() . '`).`id`');
             return $column . ' in [' . $values . ']';
         } else {
-            return $where['column'] . ' in [' . $values . ']';
+            return $this->wrap($where['column']) . ' in [' . $values . ']';
             $colIdentifier = str_random(5);
             return 'ANY ' .
-                $colIdentifier .
+                $this->wrap($colIdentifier) .
                 ' IN ' .
-                $this->wrap($where['column']) .
+                $this->wrap(($where['column'])) .
                 ' SATISFIES ' .
-                $colIdentifier .
+                $this->wrap($colIdentifier) .
                 ' IN ["' .
                 $values .
                 '"]';
@@ -311,7 +320,7 @@ class Grammar extends BaseGrammar
         $values = $this->parameterize($where['values']);
 
         if ($where['column'] === '_id') {
-            $column = 'meta(' . $query->getConnection()->getBucketName() . ').id';
+            $column = new Expression('meta(`' . $query->getConnection()->getBucketName() . '`).`id`');
             return $column . ' not in [' . $values . ']';
         } else {
             return $where['column'] . ' not in [' . $values . ']';
@@ -378,7 +387,7 @@ class Grammar extends BaseGrammar
         $columns = implode(', ', $columns);
 
         $where = $this->compileWheres($query);
-        return trim("update {$table} {$keyClause} unset $columns $where RETURNING {$returning}");
+        return trim("update {$table} {$keyClause} unset {$columns} {$where} RETURNING {$returning}");
     }
 
     /**
@@ -411,30 +420,33 @@ class Grammar extends BaseGrammar
         $parameters = collect($parameters)->transform(function ($parameter) use ($keyClause) {
             return "({$keyClause}, ?)";
         });
-        $parameters = implode(', ', $parameters->toArray());
+        $parameters = implode(', ', array_fill(0, count($parameters), '?'));
         $keyValue = '(KEY, VALUE)';
 
-        return "insert into {$table} {$keyValue} values $parameters RETURNING {$returning}";
+        return "insert into {$table} {$keyValue} values {$parameters} RETURNING {$returning}";
     }
 
     /**
-     * {@inheritdoc}
-     *
      * notice: supported set query only
+     *
+     * @param \Illuminate\Database\Query\Builder $query
+     * @param array                              $values
+     * @return string
      */
     public function compileUpdate(BaseBuilder $query, $values)
     {
+        /** @var \Mpociot\Couchbase\Query\Builder $query */
         // keyspace-ref:
         $table = $this->wrapTable($query->from);
         // use-keys-clause:
         $keyClause = is_null($query->keys) ? null : $this->compileKeys($query);
         // returning-clause
-        $returning = implode(', ', $query->returning);
+        $returning = implode(', ', array_map([$this, 'wrap'], $query->returning));
 
         $columns = [];
 
         foreach ($values as $key => $value) {
-            $columns[] = $this->wrapKey($key) . ' = ' . $this->wrapValue($value);
+            $columns[] = $this->wrap($key) . ' = ' . $this->parameter($value);
         }
 
         $columns = implode(', ', $columns);
@@ -445,22 +457,21 @@ class Grammar extends BaseGrammar
         foreach ($query->forIns as $forIn) {
             foreach ($forIn['values'] as $key => $value) {
                 $forIns[] = $this->wrap($key) .
-                    ' = "' .
-                    $value .
-                    '" FOR ' .
-                    str_singular($forIn['alias']) .
+                    ' = ' .
+                    $this->wrap($value) .
+                    ' FOR ' .
+                    $this->wrap(str_singular($forIn['alias'])) .
                     ' IN ' .
-                    $forIn['alias'] .
+                    $this->wrap($forIn['alias']) .
                     ' WHEN ' .
-                    $forIn['column'] .
-                    '="' .
-                    $this->wrapValue($forIn['value']) .
-                    '" END';
+                    $this->wrap($forIn['column']) .
+                    '= ?' .
+                    ' END';
             }
         }
         $forIns = implode(', ', $forIns);
 
-        return trim("update {$table} $keyClause set $columns $forIns $where RETURNING {$returning}");
+        return trim("update {$table} {$keyClause} set {$columns} {$forIns} {$where} RETURNING {$returning}");
     }
 
     /**
@@ -475,7 +486,7 @@ class Grammar extends BaseGrammar
         // use-keys-clause:
         $keyClause = is_null($query->keys) ? null : $this->compileKeys($query);
         // returning-clause
-        $returning = implode(', ', $query->returning);
+        $returning = implode(', ', array_map([$this, 'wrap'], $query->returning));
         $where = is_array($query->wheres) ? $this->compileWheres($query) : '';
 
         return trim("delete from {$table} {$keyClause} {$where} RETURNING {$returning}");
@@ -488,13 +499,11 @@ class Grammar extends BaseGrammar
     public function compileKeys(BaseBuilder $query)
     {
         if (is_array($query->keys)) {
-            if (empty($query->keys)) {
+            if (0 === count($query->keys)) {
                 return 'USE KEYS []';
             }
-            return 'USE KEYS [\'' . implode('\', \'', $query->keys) . '\']';
+            return 'USE KEYS ["' . implode('","', $query->keys) . '"]';
         }
-        return 'USE KEYS \'' . $query->keys . '\'';
+        return "USE KEYS \"{$query->keys}\"";
     }
-
-
 }

@@ -206,9 +206,11 @@ class ModelTest extends TestCase
         $this->assertEquals(null, $item);
     }
 
+    /**
+     * @expectedException \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
     public function testFindOrfail()
     {
-        $this->setExpectedException('Illuminate\Database\Eloquent\ModelNotFoundException');
         User::findOrfail('51c33d8981fec6813e00000a');
     }
 
@@ -362,14 +364,14 @@ class ModelTest extends TestCase
     }
     
     /**
-     * @group testUnset
+     * @group testDrop
      */
-    public function testUnset()
+    public function testDrop()
     {
         $user1 = User::create(['name' => 'John Doe', 'note1' => 'ABC', 'note2' => 'DEF']);
         $user2 = User::create(['name' => 'Jane Doe', 'note1' => 'ABC', 'note2' => 'DEF']);
 
-        $user1->unset('note1');
+        $user1->drop('note1');
 
         $this->assertFalse(isset($user1->note1));
         $this->assertTrue(isset($user1->note2));
@@ -385,7 +387,7 @@ class ModelTest extends TestCase
         $this->assertTrue(isset($user2->note1));
         $this->assertTrue(isset($user2->note2));
 
-        $user2->unset(['note1', 'note2']);
+        $user2->drop(['note1', 'note2']);
     
         $this->assertFalse(isset($user1->note1));
         $this->assertTrue(isset($user1->note2));

@@ -18,11 +18,6 @@ class User extends Eloquent implements AuthenticatableContract, CanResetPassword
         return $this->hasMany('Book', 'author_id');
     }
 
-    public function mysqlBooks()
-    {
-        return $this->hasMany('MysqlBook', 'author_id');
-    }
-
     public function items()
     {
         return $this->hasMany('Item');
@@ -31,11 +26,6 @@ class User extends Eloquent implements AuthenticatableContract, CanResetPassword
     public function role()
     {
         return $this->hasOne('Role');
-    }
-
-    public function mysqlRole()
-    {
-        return $this->hasOne('MysqlRole');
     }
 
     public function clients()
@@ -51,16 +41,6 @@ class User extends Eloquent implements AuthenticatableContract, CanResetPassword
     public function photos()
     {
         return $this->morphMany('Photo', 'imageable');
-    }
-
-    public function addresses()
-    {
-        return $this->embedsMany('Address');
-    }
-
-    public function father()
-    {
-        return $this->embedsOne('User');
     }
 
     protected function getDateFormat()

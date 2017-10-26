@@ -23,6 +23,9 @@ class Builder extends BaseBuilder
      */
     public $projections;
 
+    /**
+     * @var array
+     */
     public $forIns = [];
 
     /**
@@ -132,7 +135,7 @@ class Builder extends BaseBuilder
      */
     public function returning(array $column = ['*'])
     {
-        $this->returning = array_map([$this->grammar, 'wrap'], $column);
+        $this->returning = $column;
 
         return $this;
     }
@@ -550,7 +553,7 @@ class Builder extends BaseBuilder
             $this->columns = [$this->connection->getBucketName() . '.*'];
         }
         if ($this->columns === [$this->connection->getBucketName() . '.*'] || in_array('_id', $this->columns)) {
-            $this->columns[] = 'meta(' . $this->connection->getBucketName() . ').id as _id';
+            $this->columns[] = 'meta(`' . $this->connection->getBucketName() . '`).id as _id';
             $this->columns = array_diff($this->columns, ['_id']);
         }
         for ($i = 0; $i < count($this->wheres); $i++) {
